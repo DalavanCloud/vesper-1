@@ -211,42 +211,50 @@ VESPER.VisLauncher = function (divid, options) {
     }
 
     this.makeVis = function (details, aModel) {
-        var id = aModel.name + "view" + (details.multiple ? aModel.getNextSessionModelViewID() : "");
-        id = id.replace(/\s+/g, '');    // Spaces not allowed in html5 ID's
+        var index = aModel.getNextSessionModelViewID();
+        var id = aModel.name + "view" + (details.multiple ? index : "");
+        // Spaces not allowed in html5 ID's. They can start with a number but that knackers css style selection so begin with a D
+        id = "D" + id.replace(/\s+[a-z]/g, function(x) { return x.toUpperCase(); }).replace(/\s+/g, '');
         var title = VESPER.titles [details.type];
         var vid = title + " " + aModel.name;
 
+        var pcent = ((index % 10) * 10) +"%";
         if (d3.select("#"+id).empty()) {
+            var containerID = id+"container";
             var newDiv = d3.select("#allVisDiv")
                 .append("div")
                 .attr("class", "visWrapper")
-                .attr ("id", id+"container")
-                .style("width", details.width ? details.width : "50%")
+                .attr ("id", containerID)
+                .style("width", details.width ? details.width : "40%")
+                .style ("left", pcent)
+                .style ("top", pcent)
+                //.style ("right", "auto")
+                //.style ("bottom", "auto")
             ;
 
             var topBar = newDiv.append("div").attr("class","dragbar").attr("id", id+"dragBar");
             var buttonSpan = topBar.append("div").attr("class", "buttonBank");
             topBar.append("div").attr("class", "visTitle").text(vid);
 
-            /*var indVisDiv = */newDiv.append("div").attr("class", "vis").attr("id", id).style("height", details.height != "null" ? details.height : "100%");
+            /*var indVisDiv = */newDiv.append("div").attr("class", "vis").attr("id", id).style("height", details.height != "null" ? details.height : "auto");
 
-            var coreType = aModel.getMetaData().coreRowType;
+            //var coreType = aModel.getMetaData().coreRowType;
             var fileData = aModel.getMetaData().fileData;
-           // var coreFieldIndex = fileData[coreType].filteredFieldIndex;
+            // var coreFieldIndex = fileData[coreType].filteredFieldIndex;
 
             var newVis = details.newVisFunc ("#"+id);
             VESPER.log ("newvis", newVis, newVis.set);
             var fields = details.setupFunc () || {};
-            var keyFieldName = fileData[coreType].filteredInvFieldIndex [aModel.getParser().getFilteredIdIndex (aModel.getMetaData())];
+            var keyFieldName = fileData["core"].filteredInvFieldIndex [aModel.getParser().getFilteredIdIndex (aModel.getMetaData())];
             fields.identifyingField = keyFieldName;
             newVis.set (fields, aModel);
             aModel.addView (newVis);
             newVis.go (aModel);
 
 
-            addHideShowButton (buttonSpan, "#"+id);
+            addHideShowButton (buttonSpan, "#"+id, "#"+containerID);
             addKillViewButton (buttonSpan, newVis);
-            $("#"+id+"container").draggable({ handle: "div.dragbar", containment: "#allVisDiv"});
+            $("#"+id+"container").draggable({ handle: "div.dragbar", containment: "#allVisDiv", stack: ".visWrapper"});
         }
     };
 
@@ -259,34 +267,30 @@ VESPER.VisLauncher = function (divid, options) {
                 d3.select(d3.event.target).on ("click", null); // remove event from this very button to avoid dom holding refs to data
             } )
             .attr ("title", $.t("launcher.closeTooltip"))
-            .append ("img")
-            .attr ("src", VESPER.imgbase+"close.png")
+            .append ("span")
+            .text ("X")
             .attr ("alt", "Close")
         ;
     }
 
-    function addHideShowButton (where, toggleThisID) {
-        var initPoly = "1,1 12,1";
+    function addHideShowButton (where, toggleThisID, containerID) {
         where.append("button")
             .attr("type", "button")
             .on ("click", function() {
                 var vdiv = d3.select(toggleThisID);
                 var dstate = vdiv.style("display");
                 //dstate is current vis display state, not the one we are switching it into...
+                d3.select(containerID).style("height", "auto"); // cos draggable sets it to a specific height in FF, which doesnt seem to get recalced on the display hide here
                 vdiv.style("display", dstate === "none" ? null : "none");
-                //var svg = d3.select(this).select("svg polygon");
-                d3.select(this).select("svg polygon")
-                    .attr("points", dstate === "none" ?
-                         initPoly : "1,1 12,1 12,12 1,12"
-                );
+
+                d3.select(this).select("span")
+                    .text(dstate === "none" ? "\u203e" : "\u27c2")
+                ;
             } )
             .attr ("title", $.t("launcher.hideTooltip"))
-                .append("svg")
-                .attr ("width", 14)
-                .attr ("height", 13)
-                    .append("polygon")
-                    .attr("points", initPoly)
-                    .attr("class", "showHideColours")
+            .append("span")
+            .text ("\u203e")
+            .attr("class", "showHideColours")
         ;
     }
 

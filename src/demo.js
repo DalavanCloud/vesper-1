@@ -44,7 +44,7 @@ VESPER.demo = function (files, exampleDivID) {
             newVisFunc: function (div) { return new VESPER.Sanity (div);},
             setupFunc: function () { return undefined; }
         },
-        {type: "RecordDetails", multiple: true, attList: [], matchAll: false, image: VESPER.imgbase+"comment.png", height: "500px",
+        {type: "RecordDetails", multiple: true, attList: [], matchAll: false, image: VESPER.imgbase+"comment.png", height: "auto", width: "auto",
             newVisFunc: function (div) { return new VESPER.RecordDetails (div);},
             setupFunc: function () { return undefined; }
         },
@@ -56,7 +56,7 @@ VESPER.demo = function (files, exampleDivID) {
             newVisFunc: function (div) { return VESPER.ExpTaxaDistribution (div);},
             setupFunc: function () { return {"realField":"id", "rankField":"taxonRank"}; }
         },
-        {type: "FilterView", multiple: true, attList: [], matchAll: false, image: VESPER.imgbase+"search.png", height: "150px", width: "200px",
+        {type: "FilterView", multiple: true, attList: [], matchAll: false, image: VESPER.imgbase+"search.png", height: "null", width: "auto",
             newVisFunc: function (div) { return new VESPER.FilterView (div);},
             setupFunc: function () { return {} ;}
         }
@@ -71,8 +71,8 @@ VESPER.demo = function (files, exampleDivID) {
 
 
     function showPanelsOnLoad (d) {
-        DWCAHelper.divDisplay(["#showOnZipLoadDiv"], "none");
-        DWCAHelper.divDisplay(["#selDiv"], "block");
+        d3.select("#showOnZipLoadDiv").style("display", "none");
+        d3.select("#selDiv").style("display", "block");
         d3.select("#filenamePlaceholder").html(d.name);
         d3.select("#filesizePlaceholder").html("...");
         d3.select("#dynamicSelectDiv").selectAll("span input").property("checked", false);
@@ -81,11 +81,16 @@ VESPER.demo = function (files, exampleDivID) {
     }
 
     function setChoices (choiceData) {
-        var descriptions = $.t("demo.descriptions", {"returnObjectTrees":true});
-        var origins = $.t("demo.origins", {"returnObjectTrees":true});
+
+        // append data to choice object using fields in the text description files
+        var demoDescriptorFields = ["description", "origin", "DOI"];
+        var demoDescriptorData = demoDescriptorFields.map (function (field) {
+            return $.t("demo."+field+"s", {"returnObjectTrees":true});
+        });
         for (var n = choiceData.length; --n >= 0;) {
-            choiceData[n].description = descriptions[files[n].name];
-            choiceData[n].origin = origins[files[n].name];
+            for (var m = 0; m < demoDescriptorData.length; m++) {
+                choiceData[n][demoDescriptorFields[m]] = demoDescriptorData[m][files[n].name];
+            }
         }
 
 
@@ -93,7 +98,8 @@ VESPER.demo = function (files, exampleDivID) {
         if (table.empty()) {
             table = d3.select(exampleDivID).append("table");
             var headerRow = table.append("tr");
-            var headerText = [$.t("demo.dataHeader"), $.t("demo.descHeader"), $.t("demo.origHeader")];
+            var headerText = [$.t("demo.dataHeader")];
+            demoDescriptorFields.forEach (function(field) { headerText.push ($.t("demo."+field+"sHeader")); });
             var headers = headerRow.selectAll("th").data(headerText);
             headers.enter().append("th").text(function(d) { return d; });
         }
@@ -120,8 +126,17 @@ VESPER.demo = function (files, exampleDivID) {
             })
         ;
 
-        rows.append("td").text(function(d) { return d.description; });
-        rows.append("td").text(function(d) { return d.origin; });
+        demoDescriptorFields.forEach (function (field) {
+            rows.append("td").html(function(d) {
+                var str = d[field];
+                if (d[field] && d[field].slice(0,7) === "http://") {
+                    str = "<a href=\""+str+"\">"+str+"</a>";
+                }
+                return str;
+            });
+        });
+        //rows.append("td").text(function(d) { return d.description; });
+        //rows.append("td").text(function(d) { return d.origin; });
 
         // make progress bar
         DWCAHelper.makeProgressBar (undefined, progressBarID, "loadProgressDiv");
@@ -247,7 +262,7 @@ VESPER.demo = function (files, exampleDivID) {
 
         var advSelFunc = function () {
             var val = d3.select(this).property("checked") ? "block" : "none";
-            DWCAHelper.divDisplay(["#advancedSelectDiv", "#listDiv"], val);
+            d3.selectAll("#advancedSelectDiv", "#listDiv").style("display", val);
             return false;
         };
         var advCheckbox = DWCAHelper.addCheckboxes (d3.select("#advRevealPlaceholder"), [{title:"Advanced Options", image: null}], "showAdv");
@@ -261,7 +276,7 @@ VESPER.demo = function (files, exampleDivID) {
         // make active tab the small one (i.e. hide any tabs with content) and then show progress bar
         var index = $('#tabs a[href="#small"]').parent().index();
         $("#tabs").tabs("option", "active", index);
-        DWCAHelper.divDisplay(["#"+progressBarID], "block");
+        d3.select("#"+progressBarID).style("display", "block");
 
         function notifyFunc (fileName, lines) {
             d3.select("#"+progressBarID).select("p").html($.t("demo.zipProcTemplate", {"fileName":fileName, "count": lines}));
@@ -281,8 +296,8 @@ VESPER.demo = function (files, exampleDivID) {
         VESPER.log ("MODEL", model);
         if (VESPER.alerts) { alert ("mem monitor point X"); }
 
-        DWCAHelper.divDisplay(["#selDiv"], "none");
-        DWCAHelper.divDisplay(["#allVisDiv"], "block");
+        d3.select("#selDiv").style("display", "none");
+        d3.select("#allVisDiv").style("display", "block");
         d3.select("#"+progressBarID).select("p").html($.t("demo.initViewsMessage"));
 
         // Do a set timeout so the progressbar is updated with the above message before the views start initialising
@@ -291,7 +306,7 @@ VESPER.demo = function (files, exampleDivID) {
                 // the replace regex rips out nonalphanueric strings as dots and hashes cause trouble when passing the name as an id to d3selectors
                 model.name = d3.select("#filenamePlaceholder").text().replace(/\W/g, '');
                 (new VESPER.VisLauncher()).makeVis (visChoiceData[0], model);
-                DWCAHelper.divDisplay(["#"+progressBarID], "none");
+                d3.select("#"+progressBarID).style("display", "none");
 
                 // Aid G.C.
                 model = null;
@@ -336,7 +351,7 @@ VESPER.demo = function (files, exampleDivID) {
                 }
             });
 
-            DWCAHelper.divDisplay (["#showOnZipLoadDiv"], "block");
+            d3.select ("#showOnZipLoadDiv").style("display", "block");
         } else {
             alert (meta.error+" "+$.t("demo.DWCAErrorMeta"));
             // flash up something to say not a dwca file (one we can read at least)
